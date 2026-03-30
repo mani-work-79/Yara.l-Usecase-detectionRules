@@ -1,106 +1,58 @@
-rule MXDR_batch_file_created_in_windows_temp_folder {
-  
-
-  meta:
-    author = "Varun Murthy"
-    date_of_creation = "15/02/2024"
-    date_of_finalization = "21/2/2024"
-	description = "Detects batch files being created in windows temp folder.Dumping files into temp folder by itself raises security concerns, if these are batch files the chances of them being malicious might be really high. Since everyone has write access to temp folder, an attacker could abuse this behavior to run arbitrary code on the victim’s system."
-    severity = "medium"
-    category = "Endpoint" 
-    mitre_tactic = " Persistence, Privilege Escalation, Defense Evasion"
-    mitre_tactic_id = "TA0003, TA0004, TA0005"
-    mitre_technique = "Hijack Execution Flow: Executable Installer File Permissions Weakness"
-    mitre_technique_id = "T1574.005"
-	rule_source = "Threat Detection R&D"
-    rule_validation = "20/02/2024"
-    rule_validated_by = "Varun Murthy"
-	rule_validation_notes = "not detected by CrowdStrike"
-	lists = "none"
-    known_false_positives = "none"
- 
-
-  events:
-    $e.metadata.event_type = "FILE_CREATION" 
-    $e.target.file.full_path = /\\windows\\temp\\.*\.bat$/ nocase 
-    ($e.principal.process.file.full_path = "System" nocase or $e.principal.process.file.full_path = /explorer\.exe/ nocase)
-
-    not $e.target.file.full_path in regex %FILE_WHITELIST 
-
-    outcome:
-        $command = array_distinct($e.target.process.command_line )
-        $host = array_distinct($e.principal.hostname )
-        $prinicpal_file_path = array_distinct($e.principal.process.file.full_path)
-        $target_file_path = array_distinct($e.target.file.full_path )
-
-  
-  condition:
+rule BRCM_235_Schedule_Task_with_Rundll32_Command_Trigger {
+meta:
+    name = "BRCM_235_Schedule_Task_with_Rundll32_Command_Trigger"
+    author = "Deloitte"
+    description = "Detects the creation of scheduled tasks in Windows that utilize the rundll32 command to execute payloads. This analytic leverages Windows Security EventCode 4698, which logs scheduled task creation, and filters for tasks set to launch via rundll32. This method is commonly used by malware (e.g., TrickBot) for persistence or further payload delivery. If confirmed malicious, it may facilitate data theft, ransomware, or continued compromise. Prompt investigation is recommended."
+    severity = "High"
+    mitre_ttp = "{'T1053.005': 'Scheduled Task/Job: Scheduled Task', 'T1218.011': 'Signed Binary Proxy Execution: Rundll32'}"
+    reference_lists = "NA"
+    log_dependencies = "WINEVTLOG"
+    reference = "https://whitehat.eu/incident-response-case-study-featuring-ryuk-and-trickbot-part-2/"
+    usecase = "Detection of potentially malicious scheduled tasks leveraging the rundll32 binary for persistence or execution of additional payloads."
+events:
+    (
+        $e.metadata.log_type = "WINEVTLOG" AND
+        $e.metadata.product_event_type = "4698" AND
+        (
+            ($e.principal.process.command_line = /rundll32/ nocase) OR ($e.target.process.command_line = /rundll32/ nocase)
+        )
+    )
+    $e.principal.hostname = $Hostname
+match:
+    $Hostname over 15m
+condition:
     $e
 }
 
 
+rule BRCM_222_Windows_RemoteInteractive_Login_Failures {
 
-rule MXDR_windows_event_log_access_tampering_via_registry 
-{
- meta:
-    author = "Rohan Nema"
-    date_of_creation = "2/09/2025"
-    date_of_finalization = "2/13/2025"
-    description = "Detects changes to the Windows EventLog channel permission values. It focuses on changes to the Security Descriptor Definition Language (SDDL) string, as modifications to these values can restrict access to specific users or groups, potentially aiding in defense evasion by controlling who can view or modify a event log channel. Upon execution, the user shouldn't be able to access the event log channel via the event viewer or via utilities such as Get-EventLog or wevtutil"
+meta:
+
+    name = "BRCM_222_Windows_RemoteInteractive_Login_Failures"
+    author = "Deloitte"
+    description = "Detects three or more Windows RemoteInteractive login failures (event 4625, auth_detail 10) by the same user from the same IP address within one hour."
     severity = "Medium"
-    category = "Endpoint" 
-    mitre_tactic = "Persistence, Privilege Escalation"
-    mitre_tactic_id = "TA0003, TA0004"
-    mitre_technique = "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder"
-    mitre_technique_id = "T1574.001"
-	rule_source = "Threat Detection R&D"
-    rule_validation = "2/13/2025"
-    rule_validated_by = "Rohan Nema"
-    lists = "none"
-    known_false_positives = "none"
-    
+    mitre_ttp = "{'T1110': 'Brute Force'}"
+    mitre_tactics = "Credential Access"
+    log_dependencies = "WINEVTLOG"
 
-  events:
-   (
-    $event.metadata.event_type = "REGISTRY_MODIFICATION" 
-    and (
-      (
-        re.regex($event.target.registry.registry_key, `\\SYSTEM\\controlset\\Services\\EventLog\\System`) nocase and 
-        (re.regex($event.target.registry.registry_key, `\\CustomSD$`) nocase or $event.target.registry.registry_value_name = "CustomSD")
-      )
-      or (
-        (
-          re.regex($event.target.registry.registry_key, `\\Policies\\Microsoft\\Windows\\EventLog\\Setup`) nocase or 
-          re.regex($event.target.registry.registry_key, `\\Microsoft\\Windows\\CurrentVersion\\WINEVT\\Channels`) nocase
-        )
-        and 
-        (re.regex($event.target.registry.registry_key, `\\ChannelAccess$`) nocase or $event.target.registry.registry_value_name = "ChannelAccess")
-      )
-    )
-    and (
-      re.regex($event.target.registry.registry_value_data, `D:\(D;`) nocase
-      or (
-        re.regex($event.target.registry.registry_value_data, `D:\(`) nocase and 
-        re.regex($event.target.registry.registry_value_data, `\)\(D;`) nocase
-      )
-    )
-  )
+events:
 
-  outcome:
-        $key_asset = array_distinct($event.principal.hostname )
-        $principal_command_line = array_distinct($event.principal.process.command_line)
-        $target_command_line = array_distinct($event.target.process.command_line)
-        $principal_file_path = array_distinct($event.principal.process.file.full_path)
-        $target_file_path = array_distinct($event.target.process.file.full_path)
-        $target_user_email_address = array_distinct($event.target.user.email_addresses)
-        $target_registry_key = array_distinct($event.target.registry.registry_key)
-        $target_registry_value_name = array_distinct($event.target.registry.registry_value_name)
-        $target_registry_value_data = array_distinct($event.target.registry.registry_value_data)
-        $log_type = array_distinct($event.metadata.log_type)
+    $e.metadata.log_type = "WINEVTLOG" AND
+    $e.metadata.product_event_type = "4625" AND
+    $e.extensions.auth.auth_details = "10" AND
+    $e.target.user.userid != "" AND
+    $e.principal.ip != "" AND 
+    $e.principal.ip = $ip AND
+    $e.target.user.userid = $user
 
+match:
+    $ip, $user over 1h
 
-  condition:
-    $event
+condition:
+    #e >= 3
+
 }
 
-//ref:- https://www.atomicredteam.io/atomic-red-team/atomics/T1562.002#atomic-test-8---modify-event-log-channel-access-permissions-via-registry---powershell
+
