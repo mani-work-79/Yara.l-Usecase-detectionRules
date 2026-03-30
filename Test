@@ -1,58 +1,53 @@
-rule BRCM_235_Schedule_Task_with_Rundll32_Command_Trigger {
-meta:
-    name = "BRCM_235_Schedule_Task_with_Rundll32_Command_Trigger"
-    author = "Deloitte"
-    description = "Detects the creation of scheduled tasks in Windows that utilize the rundll32 command to execute payloads. This analytic leverages Windows Security EventCode 4698, which logs scheduled task creation, and filters for tasks set to launch via rundll32. This method is commonly used by malware (e.g., TrickBot) for persistence or further payload delivery. If confirmed malicious, it may facilitate data theft, ransomware, or continued compromise. Prompt investigation is recommended."
-    severity = "High"
-    mitre_ttp = "{'T1053.005': 'Scheduled Task/Job: Scheduled Task', 'T1218.011': 'Signed Binary Proxy Execution: Rundll32'}"
-    reference_lists = "NA"
-    log_dependencies = "WINEVTLOG"
-    reference = "https://whitehat.eu/incident-response-case-study-featuring-ryuk-and-trickbot-part-2/"
-    usecase = "Detection of potentially malicious scheduled tasks leveraging the rundll32 binary for persistence or execution of additional payloads."
-events:
+rule windows_event_log_cleared {
+  meta:
+    description = "Detects the clearing of Windows event logs (Security Event ID 1102 or System Event ID 104), which may indicate an attempt to cover tracks by an adversary."
+    author = "detections.ai"
+    date = "2026-03-30"
+    tactic = "TA0005"
+    technique = "T1070.001"
+    tags = "WINDOWS, DEFENSE_EVASION, LOG_CLEARING"
+    false_positives = "Legitimate system administration tasks, automated log maintenance scripts, or server provisioning processes."
+
+  events:
+    // Ensure event type is valid to optimize query performance
+    $event.metadata.event_type != "EVENT_TYPE_UNSPECIFIED"
+
+    // Target Windows Security log clearing (1102) and System log clearing (104)
     (
-        $e.metadata.log_type = "WINEVTLOG" AND
-        $e.metadata.product_event_type = "4698" AND
-        (
-            ($e.principal.process.command_line = /rundll32/ nocase) OR ($e.target.process.command_line = /rundll32/ nocase)
-        )
+      $event.metadata.product_event_type = "1102" or
+      $event.metadata.product_event_type = "104"
     )
-    $e.principal.hostname = $Hostname
-match:
-    $Hostname over 15m
-condition:
-    $e
+    
+    // Suggestion for False Positives (Medium Sensitivity): 
+    // Filter out known authorized automation accounts or specific maintenance subnets here.
+    // Example: $event.principal.user.userid != "svc_log_maintenance"
+
+    // Extract device/dest and user into match variables for correlation
+    $event.principal.hostname = $hostname
+    $event.principal.user.userid = $user
+
+  match:
+    $hostname, $user over 5m
+
+  outcome:
+    $risk_score = 65
+    $event_count = count($event.metadata.id)
+    
+    // Mapping requested conceptual fields to standard UDM outcome variables
+    $event_codes = array_distinct($event.metadata.product_event_type)
+    $dvc_hostname = array_distinct($event.principal.hostname)
+    $dest_ip = array_distinct($event.target.ip)
+    $user_id = array_distinct($event.principal.user.userid)
+    
+    // Extracting contextual fields for action, app, and change_type mapping
+    $change_type = array_distinct($event.metadata.event_type)
+    $app_name = array_distinct($event.metadata.product_name)
+    $action_taken = array_distinct($event.security_result.action)
+
+  condition:
+    $event
+    
+  options:
+    // Allow zero values in case the user ID is not populated in System Event ID 104 logs
+    allow_zero_values = true
 }
-
-
-rule BRCM_222_Windows_RemoteInteractive_Login_Failures {
-
-meta:
-
-    name = "BRCM_222_Windows_RemoteInteractive_Login_Failures"
-    author = "Deloitte"
-    description = "Detects three or more Windows RemoteInteractive login failures (event 4625, auth_detail 10) by the same user from the same IP address within one hour."
-    severity = "Medium"
-    mitre_ttp = "{'T1110': 'Brute Force'}"
-    mitre_tactics = "Credential Access"
-    log_dependencies = "WINEVTLOG"
-
-events:
-
-    $e.metadata.log_type = "WINEVTLOG" AND
-    $e.metadata.product_event_type = "4625" AND
-    $e.extensions.auth.auth_details = "10" AND
-    $e.target.user.userid != "" AND
-    $e.principal.ip != "" AND 
-    $e.principal.ip = $ip AND
-    $e.target.user.userid = $user
-
-match:
-    $ip, $user over 1h
-
-condition:
-    #e >= 3
-
-}
-
-
