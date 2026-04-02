@@ -1,0 +1,247 @@
+windows_user_account_created_added_to_group_and_deleted_within_short_time 
+windows_event_log_access_tampering_via_registry
+windows_batch_file_created_in_temp_folder
+windows_scheduled_task_created_with_rundll32_command
+windows_remoteinteractive_login_failures
+windows_event_log_cleared
+-----------------------------------------------------------------------------------------------------------------
+
+
+rule windows_user_account_created_added_to_group_and_deleted_within_short_time {
+  meta:
+      rule_name = "Windows_User_Account_Created_Added_To_Group_And_Deleted_Within_short_time"
+      description = "Detects a sequence where a user account is created, added to a security group, and deleted within a 36-hour period. This behavior may indicate malicious account creation for privilege escalation followed by an attempt to evade detection."
+      author = "Deloitte"
+      mitre_attack_tactic = "Persistence"
+      mitre_attack_technique = "Create Account: Domain Account (T1136.002)"
+      mitre_attack_url = "https://attack.mitre.org/techniques/T1136/002/"
+      type = "Alert"
+      data_source = "Windows"
+      severity = "Medium"
+      priority = "Medium"
+  events:
+    $account_created.metadata.vendor_name = "Microsoft"
+    (
+    $account_created.metadata.product_event_type = "4720" or //A user account was created
+    $account_created.metadata.product_event_type = "624"
+    )
+    $account_created.target.user.user_display_name  = $displayname
+    $account_created.metadata.event_timestamp.seconds < $account_added.metadata.event_timestamp.seconds
+    $account_added.metadata.vendor_name = "Microsoft"
+    (
+    $account_added.metadata.product_event_type = "4728" or //A member was added to a security-enabled global group
+    $account_added.metadata.product_event_type = "4732" or //A member was added to a security-enabled domain local group.
+    $account_added.metadata.product_event_type = "4756" or //A member was added to a security-enabled universal group.
+    //Legacy (Pre-Vista/2008)
+    $account_added.metadata.product_event_type = "632" or //A member was added to a security-enabled global group
+    $account_added.metadata.product_event_type = "636" or //A member was added to a security-enabled domain local group.
+    $account_added.metadata.product_event_type = "660"    //A member was added to a security-enabled universal group.
+    )
+    $account_added.target.user.user_display_name  = $displayname
+    $account_added.target.group.windows_sid = $group
+    $account_added.metadata.event_timestamp.seconds < $account_deleted.metadata.event_timestamp.seconds
+    $account_deleted.metadata.vendor_name = "Microsoft"
+    (
+    $account_deleted.metadata.product_event_type = "4726" or //A user account was deleted
+    //Legacy (Pre-Vista/2008)
+    $account_deleted.metadata.product_event_type = "630" //A user account was deleted
+    )
+    $account_deleted.target.user.user_display_name  = $displayname
+    $account_deleted.target.user.windows_sid = $target_user
+
+  match:
+    $displayname over 36h
+
+  outcome:
+    $Source_user = array_distinct($displayname)
+    $Event_id = array_distinct($account_added.metadata.product_event_type)
+  condition:
+    $account_created and $account_added and $account_deleted
+}
+
+
+--------------------------------------------------------------------
+
+
+rule windows_event_log_access_tampering_via_registry
+{
+    meta:
+    rule_name = "Windows Event Log Access Tampering via Registry"
+    description = "Detects changes to the Windows EventLog channel permission values. It focuses on changes to the Security Descriptor Definition Language (SDDL) string, as modifications to these values can restrict access to specific users or groups, potentially aiding in defense evasion by controlling who can view or modify a event log channel. Upon execution, the user shouldn't be able to access the event log channel via the event viewer or via utilities such as Get-EventLog or wevtutil"
+    author = "Deloitte"
+    mitre_attack_tactic = "Persistence, Privilege Escalation"
+    mitre_attack_technique = "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder"
+    tactic = "TA0003, TA0004"
+    technique = "T1574.001"
+    mitre_attack_url = "https://attack.mitre.org/techniques/T1574/001/"
+    type = "Alert"
+    data_source = "Windows"
+    severity = "Medium"
+    priority = "Medium" 
+  events:
+   (
+    $event.metadata.event_type = "REGISTRY_MODIFICATION" 
+    and (
+      (
+        re.regex($event.target.registry.registry_key, `\\SYSTEM\\controlset\\Services\\EventLog\\System`) nocase and 
+        (re.regex($event.target.registry.registry_key, `\\CustomSD$`) nocase or $event.target.registry.registry_value_name = "CustomSD")
+      )
+      or (
+        (
+          re.regex($event.target.registry.registry_key, `\\Policies\\Microsoft\\Windows\\EventLog\\Setup`) nocase or 
+          re.regex($event.target.registry.registry_key, `\\Microsoft\\Windows\\CurrentVersion\\WINEVT\\Channels`) nocase
+        )
+        and 
+        (re.regex($event.target.registry.registry_key, `\\ChannelAccess$`) nocase or $event.target.registry.registry_value_name = "ChannelAccess")
+      )
+    )
+    and (
+      re.regex($event.target.registry.registry_value_data, `D:\(D;`) nocase
+      or (
+        re.regex($event.target.registry.registry_value_data, `D:\(`) nocase and 
+        re.regex($event.target.registry.registry_value_data, `\)\(D;`) nocase
+      )
+    )
+  )
+  outcome:
+        $key_asset = array_distinct($event.principal.hostname )
+        $principal_command_line = array_distinct($event.principal.process.command_line)
+        $target_command_line = array_distinct($event.target.process.command_line)
+        $principal_file_path = array_distinct($event.principal.process.file.full_path)
+        $target_file_path = array_distinct($event.target.process.file.full_path)
+        $target_user_email_address = array_distinct($event.target.user.email_addresses)
+        $target_registry_key = array_distinct($event.target.registry.registry_key)
+        $target_registry_value_name = array_distinct($event.target.registry.registry_value_name)
+        $target_registry_value_data = array_distinct($event.target.registry.registry_value_data)
+        $log_type = array_distinct($event.metadata.log_type)
+
+  condition:
+    $event
+}
+-------------------------------------------------------------
+
+
+rule windows_batch_file_created_in_temp_folder
+{
+    meta:
+        rule_name = "Windows Batch File Created in Temp Folder"
+        description = "Detects batch files being created in windows temp folder.Dumping files into temp folder by itself raises security concerns, if these are batch files the chances of them being malicious might be really high. Since everyone has write access to temp folder, an attacker could abuse this behavior to run arbitrary code on the victim’s system."
+        author = "Deloitte"
+        mitre_attack_tactic = "Persistence, Privilege Escalation, Defense Evasion"
+        mitre_attack_technique = "Hijack Execution Flow: Executable Installer File Permissions Weakness"
+        tactic = "TA0003, TA0004, TA0005"
+        technique = "T1574.005"
+        type = "Alert"
+        data_source = "Windows"
+        severity = "Medium"
+        priority = "Medium" 
+  events:
+    $e.metadata.event_type = "FILE_CREATION" 
+    $e.target.file.full_path = /\\windows\\temp\\.*\.bat$/ nocase 
+    ($e.principal.process.file.full_path = "System" nocase or $e.principal.process.file.full_path = /explorer\.exe/ nocase)
+    //not $e.target.file.full_path in regex %FILE_WHITELIST 
+    outcome:
+        $command = array_distinct($e.target.process.command_line )
+        $host = array_distinct($e.principal.hostname )
+        $prinicpal_file_path = array_distinct($e.principal.process.file.full_path)
+        $target_file_path = array_distinct($e.target.file.full_path )
+  condition:
+    $e
+}
+----------------------------------------------------------------------
+
+rule windows_scheduled_task_created_with_rundll32_command
+{
+    meta:
+        rule_name = "Windows Scheduled Task Created with Rundll32 Command"
+        description = "Detects the creation of scheduled tasks in Windows that execute commands using the rundll32 binary. This technique is commonly abused by malware to establish persistence or execute additional payloads and may indicate malicious activity requiring prompt investigation."
+        author = "Deloitte"
+        mitre_attack_tactic = "Persistence, Defense Evasion"
+        mitre_attack_technique = "Scheduled Task/Job: Scheduled Task (T1053.005), Signed Binary Proxy Execution: Rundll32 (T1218.011)"
+        tactic = "TA0003, TA0005"
+        technique = "T1053.005, T1218.011"
+        mitre_attack_url = "https://attack.mitre.org/techniques/T1053/005/"
+        type = "Alert"
+        data_source = "Windows"
+        severity = "Medium"
+        priority = "Medium"
+events:
+    (
+        $e.metadata.log_type = "WINEVTLOG" AND
+        $e.metadata.product_event_type = "4698" AND
+        (
+            ($e.principal.process.command_line = /rundll32/ nocase) OR ($e.target.process.command_line = /rundll32/ nocase)
+        )
+    )
+    $e.principal.hostname = $Hostname
+match:
+    $Hostname over 15m
+condition:
+    $e
+}
+------------------------------------------------------------
+
+
+rule windows_remoteinteractive_login_failures
+{
+    meta:
+        rule_name = "Windows RemoteInteractive Login Failures"
+        description = "Detects multiple failed Windows RemoteInteractive login attempts for the same user originating from the same IP address within a one-hour window. This behavior may indicate brute-force attempts targeting remote access."
+        author = "Deloitte"
+        mitre_attack_tactic = "Credential Access"
+        mitre_attack_technique = "Brute Force (T1110)"
+        tactic = "TA0006"
+        technique = "T1110"
+        type = "Alert"
+        data_source = "Windows"
+        severity = "Medium"
+        priority = "Medium"
+events:
+    $e.metadata.log_type = "WINEVTLOG" AND
+    $e.metadata.product_event_type = "4625" AND
+    $e.extensions.auth.auth_details = "10" AND
+    $e.target.user.userid != "" AND
+    $e.principal.ip != "" AND 
+    $e.principal.ip = $ip AND
+    $e.target.user.userid = $user
+match:
+    $ip, $user over 1h
+condition:
+    #e >= 3
+}
+
+----------------------------
+
+
+rule windows_event_log_cleared
+{
+    meta:
+        rule_name = "Windows Event Log Cleared"
+        description = "Detects the clearing of Windows event logs, including Security Event ID 1102 and System Event ID 104. This behavior may indicate an attempt by an adversary to evade detection by removing forensic evidence."
+        author = "Deloitte"
+        mitre_attack_tactic = "Defense Evasion"
+        mitre_attack_technique = "Indicator Removal on Host: Clear Windows Event Logs (T1070.001)"
+        tactic = "TA0005"
+        technique = "T1070.001"
+        type = "Alert"
+        data_source = "Windows"
+        severity = "Medium"
+        priority = "Medium"
+        known_false_positives = "Legitimate system administration activities, automated log maintenance, or server provisioning processes."
+    events:
+        (
+            $e.metadata.product_event_type = "1102" OR
+            $e.metadata.product_event_type = "104"
+        )
+        $e.principal.hostname = $hostname
+    match:
+        $hostname over 5m
+    outcome:
+        $event_codes = array_distinct($e.metadata.product_event_type)
+        $dvc_hostname = array_distinct($e.principal.hostname)
+        $dest_ip = array_distinct($e.target.ip)
+        $user_id = array_distinct($e.principal.user.userid)
+    condition:
+        $e
+}
+
