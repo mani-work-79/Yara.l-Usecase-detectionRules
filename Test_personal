@@ -1,0 +1,18 @@
+Custom Detection Status		
+Logsource	count	Status
+Okta	5	In prod
+Windows	6	In prod
+Obsidian	2	In prod
+Wiz	2	In prod
+GCP Audit	4	In prod
+Azure AD	3	In prod
+Roadmap		
+AWS WAF	1	Inprogress
+Fortinet Firewall	5	Inprogress
+AWS Cloudtrail	5	Inprogress
+Azure activity 	1	Inprogress
+		
+		
+Inprod	22	
+Inprogress	12	
+Total 	34	
