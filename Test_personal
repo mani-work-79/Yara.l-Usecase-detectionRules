@@ -16,3 +16,22 @@ Azure activity 	1	Inprogress
 Inprod	22	
 Inprogress	12	
 Total 	34	
+
+
+
+Log_type	Custom usecase Count
+CrowdStrike Alerts	1
+OBSIDIAN	2
+Wiz	2
+AZURE_AD	3
+GCP_CLOUDAUDIT	4
+Okta	5
+Windows	6
+Grand Total	23
+	
+Log_type	Curated usecase Count
+CrowdStrike Alerts	18
+Zscaler	2
+Wiz	2
+Okta	5
+Grand Total	27
