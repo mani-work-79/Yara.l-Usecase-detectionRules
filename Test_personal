@@ -35,3 +35,44 @@ Zscaler	2
 Wiz	2
 Okta	5
 Grand Total	27
+
+
+
+
+"rule BRCM_232_Palo_UDP_Data_Exfil_To_External {
+
+meta:
+    name = ""BRCM_232_Palo_UDP_Data_Exfil_To_External""
+    author = ""Deloitte""
+    description = ""Detects potential UDP data exfiltration to external non-owned, non-cloud destinations with exclusions, where large volumes of UDP traffic (over 50GB within a 12-hour period) are sent from our environment to external IP addresses, using Palo Alto firewall logs as the data source.""
+    severity = ""Medium""
+    log_dependencies = ""PAN_FIREWALL""
+
+events:
+
+    $e.metadata.log_type = ""PAN_FIREWALL"" AND
+    $e.network.ip_protocol = ""UDP"" AND
+    NOT ($e.target.ip in cidr %Private_IP_Subnets) AND
+    NOT ($e.target.ip in cidr %Broadcom_Owned_Infrastructure_All) AND
+    $e.observer.hostname = /pfw-prod/ nocase AND
+    $e.network.sent_bytes > 1 AND
+
+    // Exclusions
+    $e.target.ip_geo_artifact.network.carrier_name != ""avago technologies u.s. inc."" nocase AND
+    $e.target.ip_geo_artifact.network.organization_name != ""avago technologies u.s. inc."" nocase AND
+    $e.target.ip_geo_artifact.network.organization_name != /google|amazon/ nocase AND
+
+    $e.principal.ip = $source_ip AND
+    $e.target.ip = $dest_ip
+
+match:
+    $source_ip, $dest_ip over 12h
+
+outcome:
+    $total_network_bytes = sum($e.network.sent_bytes)
+    $org = array_distinct($e.target.ip_geo_artifact.network.organization_name)
+
+condition:
+    $e AND $total_network_bytes > 53687091200 // 50GB
+}
+"
