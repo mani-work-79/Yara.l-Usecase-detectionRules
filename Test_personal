@@ -76,3 +76,87 @@ condition:
     $e AND $total_network_bytes > 53687091200 // 50GB
 }
 "
+
+
+
+
+
+Windows Event Logs​
+
+Linux Audit/Auth Logs​
+
+CrowdStrike Alerts(via Feeds)​
+
+Obsidian Security Logs(via Feeds)​
+
+Wiz(via Feeds)​
+
+Okta​
+
+Tenable​
+
+Infoblox (DNS/DHCP)​
+
+Microsoft Entra ID (Azure AD)​
+
+CyberArk Privilege Cloud​
+
+Arista Switches​
+
+Cisco ISE (TACACS)​
+
+Firewalls (Fortigate/Fortimanager)​
+
+Google VPC Flow Logs​
+
+Google DNS Logs​
+
+Google Audit Logs​
+
+Zscaler ZIA​
+
+Zscaler ZPA​
+
+----------------------------------
+SailPoint​
+
+Azure Activity Logs​
+
+ServiceNow​
+
+AWS CloudTrail​
+
+Azure Key Vault Logging​
+
+AWS GuardDuty Logs​
+
+AWS Config​
+
+AWS VPC Flow Logs​
+
+Azure NSG Flow Logs​
+
+DigicertONE PKI Infrastructure​
+
+AWS WAF​
+
+Github​
+
+Workday​
+
+Checkmarx​
+
+Concur​
+
+Windows AD Logs​
+
+MS Defender for Identity​
+
+Microsoft Defender for Endpoint​
+
+O365​
+
+Salesforce (Automotive Insights)​
+
+Selector AI​
+
