@@ -25,3 +25,15 @@ Azure_AD_App_Registration_with_Admin_Consent
 Azure_AD_Brute_Force_Followed_By_Successful_Login
 Azure_AD_login_blocked_by_conditional_access
 guardduty_alerts
+
+
+
+FEW AWS Cloudtrail, composite rules available:
+
+AWS CloudTrail Tampering
+Aws Cloudtrail Stoplogging
+Aws Cloudtrail Createtrail
+Aws Cloudtrail Tampering
+Aws Cloudtrail Deletetrail
+AWS CloudTrail CSV Injection
+AWS CloudTrail Permissions Discovery then AssumeRole
