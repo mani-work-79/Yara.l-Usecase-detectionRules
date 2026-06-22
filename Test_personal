@@ -187,3 +187,102 @@ okta_multiple_policy_addition_deletion_or_update
 okta_high_number_password_change_or_reset
 okta_user_account_lockouts
 okta_successful_high_risk_us
+
+
+
+Log Category	Log Source	 Overall Logging Status
+Artifactory	JFrog	To be done
+	JFrog Total	
+Artifactory Total		
+Cloud	AWS CloudTrail	Completed
+	AWS CloudTrail Total	
+	AWS Config	Completed
+	AWS Config Total	
+	AWS GuardDuty logs	Completed
+	AWS GuardDuty logs Total	
+	AWS VPC Flow Logs	Completed
+	AWS VPC Flow Logs Total	
+	AWS WAF	Completed
+	AWS WAF Total	
+	Azure Activity logs	Completed
+	Azure Activity logs Total	
+	Azure Blob	Completed
+	Azure Blob Total	
+	Azure Event Hub	(blank)
+	Azure Event Hub Total	
+	Azure Key Vault Logging	Completed
+	Azure Key Vault Logging Total	
+	Azure NSG Flow Logs	Completed
+	Azure NSG Flow Logs Total	
+	Google Audit logs	Completed
+	Google Audit logs Total	
+	Google DNS Logs	Completed
+	Google DNS Logs Total	
+	Google VPC Flow Logs	Completed
+	Google VPC Flow Logs Total	
+Cloud Total		
+Endpoint	CrowdStrike Alerts	Completed
+	CrowdStrike Alerts Total	
+	Linux Audit/Auth logs	Completed
+	Linux Audit/Auth logs Total	
+	Microsoft Defender for Endpoint	To be done
+	Microsoft Defender for Endpoint Total	
+	Windows Event logs	Completed
+	Windows Event logs Total	
+Endpoint Total		
+Identity	Cyberark Privilege Cloud	Completed
+	Cyberark Privilege Cloud Total	
+	Microsoft Entra ID (Azure AD)	Completed
+	Microsoft Entra ID (Azure AD) Total	
+	MS Defender for Identity	To be done
+	MS Defender for Identity Total	
+	Obsidian Security logs	Completed
+	Obsidian Security logs Total	
+	Okta	Completed
+	Okta Total	
+	SailPoint	Completed
+	SailPoint Total	
+	Windows AD logs	In Progress
+	Windows AD logs Total	
+Identity Total		
+InfoSec	Checkmarx	Completed
+	Checkmarx Total	
+	DigicertONE PKI Insfrastructure	Completed
+	DigicertONE PKI Insfrastructure Total	
+	Tenable	Completed
+	Tenable Total	
+	Zscaler ZIA	Completed
+	Zscaler ZIA Total	
+InfoSec Total		
+Network	Arista Switches	Completed
+	Arista Switches Total	
+	Cisco ISE (TACACS)	Completed
+	Cisco ISE (TACACS) Total	
+	Firewalls (Fortigate/Fortimanager)	Completed
+	Firewalls (Fortigate/Fortimanager) Total	
+	Guardicore	(blank)
+	Guardicore Total	
+	Infoblox (DNS/DHCP)	Completed
+	Infoblox (DNS/DHCP) Total	
+	Zscaler ZPA	Completed
+	Zscaler ZPA Total	
+Network Total		
+SaaS	Concur	To be done
+	Concur Total	
+	Github	Completed
+	Github Total	
+	O365	Completed
+	O365 Total	
+	Salesforce (Automotive Insights)	To be done
+	Salesforce (Automotive Insights) Total	
+	ServiceNow	Completed
+	ServiceNow Total	
+	Wiz	Completed
+	Wiz Total	
+	Workday	To be done
+	Workday Total	
+SaaS Total		
+(blank)	(blank)	(blank)
+	(blank) Total	
+(blank) Total		
+Grand Total		
